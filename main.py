@@ -23,7 +23,7 @@ class ExitCodes(Enum):
 # Strip # from titles
 def strip_starting_hash(inp):
     inp = inp.strip()
-    if inp[0] == "#":
+    if inp and inp[0] == "#":
         inp = inp[1:].strip()
     return inp
 
@@ -101,17 +101,15 @@ if info_md_path.exists():
                 print("Error: \"info\" section is not a dictionary",
                       file=stderr)
                 exit(ExitCodes.INVALID_INFO)
-            if info_file.readable():
-                spec["info"]["title"] = strip_starting_hash(
-                    info_file.readline())
-            if info_file.readable():
-                spec["info"]["description"] = info_file.read()
+            spec["info"]["title"] = strip_starting_hash(
+                info_file.readline()
+            )
+            spec["info"]["description"] = info_file.read()
+elif command == "createfiles":
+    info_md_path.touch()
 else:
-    if command == "createfiles":
-        info_md_path.touch()
-    else:
-        print("Warning: MarkDown file "
-              "with general info %s is not present" % info_md_path)
+    print("Warning: MarkDown file "
+          "with general info %s is not present" % info_md_path)
 
 # Add Methods Info
 if "paths" not in spec:
@@ -145,12 +143,10 @@ for path in spec["paths"]:
                   "is not present" % (method_md_path, path, method))
             continue
         with open(method_md_path, "r") as method_file:
-            if method_file.readable():
-                method_info["summary"] = strip_starting_hash(
-                    method_file.readline()
-                )
-            if method_file.readable():
-                method_info["description"] = method_file.read()
+            method_info["summary"] = strip_starting_hash(
+                method_file.readline()
+            )
+            method_info["description"] = method_file.read()
 
 if command == "createfiles":
     print("Done")
