@@ -9,6 +9,7 @@ from enum import Enum, auto
 
 # Exit Codes
 class ExitCodes(Enum):
+    NO_COMMAND = auto()
     NO_INPUT_FILE = auto()
     NO_MD_ROOT = auto()
     INVALID_INPUT_FILE = auto()
@@ -29,10 +30,35 @@ def strip_starting_hash(inp):
 
 # Parse CLI Args
 parser = argparse.ArgumentParser()
-parser.add_argument("input_spec_path")
-parser.add_argument("md_files_root", nargs="?", default=getcwd())
-parser.add_argument("output_spec_path", nargs="?", default=None)
+subparsers = parser.add_subparsers()
+
+# merge subcommand
+parser_merge = subparsers.add_parser("merge",
+                                     help="Merge your spec file "
+                                          "and your markdown files")
+parser_merge.add_argument("input_spec_path")
+parser_merge.add_argument("md_files_root", nargs="?", default=getcwd())
+parser_merge.add_argument("output_spec_path", nargs="?", default=None)
+
+# createfiles subcommand
+parser_createfiles = subparsers.add_parser("createfiles",
+                                           help="Create blank .md files for "
+                                                "easy copy-pasting"
+                                           )
+parser_createfiles.add_argument("input_spec_path")
+parser_createfiles.add_argument("createfiles_root", nargs="?", default=getcwd())
+
 args = parser.parse_args()
+
+# Check What Command Are We Running
+command = None
+if hasattr(args, "md_files_root"):
+    command = "merge"
+elif hasattr(args, "createfiles_root"):
+    command = "createfiles"
+else:
+    print("Error: no command specified")
+    exit(ExitCodes.NO_COMMAND)
 
 # Check Input File
 input_path = Path(abspath(args.input_spec_path))
@@ -40,12 +66,21 @@ if not input_path.exists():
     print("Error: input spec %s does not exist" % input_path, file=stderr)
     exit(ExitCodes.NO_INPUT_FILE)
 
+if command == "merge":
+    md_root_path = args.md_files_root
+else:
+    md_root_path = args.createfiles_root
+
 # Check Markdown Root
-md_root = Path(abspath(args.md_files_root))
+md_root = Path(abspath(md_root_path))
 if not md_root.exists() or not md_root.is_dir():
-    print("Error: MarkDown root %s does not exist "
-          "or is not a directory" % md_root, file=stderr)
-    exit(ExitCodes.NO_MD_ROOT)
+    if command == "createfiles":
+        md_root.mkdir()
+    else:
+        print("Error: MarkDown root %s does not exist "
+              "or is not a directory" % md_root, file=stderr)
+        exit(ExitCodes.NO_MD_ROOT)
+
 # Open Input File
 spec = {}
 with open(input_path, "r") as input_file:
@@ -60,17 +95,23 @@ if "info" not in spec:
     spec["info"] = {}
 info_md_path = md_root / "info.md"
 if info_md_path.exists():
-    with open(info_md_path, "r") as info_file:
-        if type(spec["info"]) != dict:
-            print("Error: \"info\" section is not a dictionary", file=stderr)
-            exit(ExitCodes.INVALID_INFO)
-        if info_file.readable():
-            spec["info"]["title"] = strip_starting_hash(info_file.readline())
-        if info_file.readable():
-            spec["info"]["description"] = info_file.read()
+    if command == "merge":
+        with open(info_md_path, "r") as info_file:
+            if type(spec["info"]) != dict:
+                print("Error: \"info\" section is not a dictionary",
+                      file=stderr)
+                exit(ExitCodes.INVALID_INFO)
+            if info_file.readable():
+                spec["info"]["title"] = strip_starting_hash(
+                    info_file.readline())
+            if info_file.readable():
+                spec["info"]["description"] = info_file.read()
 else:
-    print("Warning: MarkDown file "
-          "with general info %s is not present" % info_md_path)
+    if command == "createfiles":
+        info_md_path.touch()
+    else:
+        print("Warning: MarkDown file "
+              "with general info %s is not present" % info_md_path)
 
 # Add Methods Info
 if "paths" not in spec:
@@ -94,6 +135,10 @@ for path in spec["paths"]:
             exit(ExitCodes.INVALID_METHOD)
         path_no_slash = path[1:] if path[0] == "/" else path
         method_md_path = md_root.joinpath(path_no_slash) / ("%s.md" % method)
+        if command == "createfiles":
+            method_md_path.parent.mkdir(parents=True)
+            method_md_path.touch()
+            continue
         if not method_md_path.exists():
             print("Warning: MarkDown file %s "
                   "for path %s and method %s "
@@ -106,6 +151,10 @@ for path in spec["paths"]:
                 )
             if method_file.readable():
                 method_info["description"] = method_file.read()
+
+if command == "createfiles":
+    print("Done")
+    exit()
 
 # Write To Screen
 if args.output_spec_path is None:
