@@ -9,9 +9,10 @@ from enum import Enum, auto
 
 # Exit Codes
 class ExitCodes(Enum):
-    NO_COMMAND = auto()
+    INVALID_COMMAND = auto()
     NO_INPUT_FILE = auto()
     NO_MD_ROOT = auto()
+    MD_ROOT_EXISTS = auto()
     INVALID_INPUT_FILE = auto()
     INVALID_INFO = auto()
     INVALID_PATHS = auto()
@@ -28,58 +29,114 @@ def strip_starting_hash(inp):
     return inp
 
 
+# Code Languages
+LANGUAGES = {
+    "Python": ".py",
+    "PHP": ".php",
+    "JavaScript": ".js",
+    "Java": ".java",
+    "C": ".c",
+    "C++": ".cpp",
+    "C#": ".cs",
+    "Go": ".go",
+    "Dart": ".dart",
+}
+
+# Available Commands
+COMMANDS = ["merge", "createfiles"]
+
 # Parse CLI Args
 parser = argparse.ArgumentParser()
-subparsers = parser.add_subparsers()
+subparsers = parser.add_subparsers(
+    dest="command"
+)
 
 # merge subcommand
-parser_merge = subparsers.add_parser("merge",
-                                     help="Merge your spec file "
-                                          "and your markdown files")
-parser_merge.add_argument("input_spec_path")
-parser_merge.add_argument("md_files_root", nargs="?", default=getcwd())
-parser_merge.add_argument("output_spec_path", nargs="?", default=None)
+parser_merge = subparsers.add_parser(
+    "merge",
+    help="Merge your spec file "
+         "and your markdown files"
+)
+parser_merge.add_argument(
+    "input_file",
+    help="The path to your raw spec file "
+         "(must be a valid JSON file "
+         "so must end in .json)"
+)
+parser_merge.add_argument(
+    "files_root",
+    nargs="?",
+    default=getcwd(),
+    help="The path to the root of the folder "
+         "with your .md and code samples files"
+)
+parser_merge.add_argument(
+    "output_file",
+    nargs="?",
+    default=None,
+    help="The path to the result"
+         "(must be a valid JSON file "
+         "so must end in .json). "
+         "If not present, the result "
+         "will be printed to"
+         "the screen."
+)
 
 # createfiles subcommand
-parser_createfiles = subparsers.add_parser("createfiles",
-                                           help="Create blank .md files for "
-                                                "easy copy-pasting"
-                                           )
-parser_createfiles.add_argument("input_spec_path")
-parser_createfiles.add_argument("createfiles_root", nargs="?", default=getcwd())
+parser_createfiles = subparsers.add_parser(
+    "createfiles",
+    help="Create blank .md and "
+         "code samples files for "
+         "easy copy-pasting"
+)
+parser_createfiles.add_argument(
+    "input_file",
+    help="The path to your raw spec file "
+         "(must be a valid JSON file "
+         "so must end in .json)"
+)
+parser_createfiles.add_argument(
+    "files_root",
+    nargs="?",
+    default=getcwd(),
+    help="The path to the root of the folder "
+         "with your .md and code samples files"
+)
+parser_createfiles.add_argument(
+    "--languages",
+    nargs="+",
+    default=[],
+    choices=LANGUAGES.keys(),
+    help="A list of programming languages to use for empty code sample files."
+)
 
 args = parser.parse_args()
 
 # Check What Command Are We Running
-command = None
-if hasattr(args, "md_files_root"):
-    command = "merge"
-elif hasattr(args, "createfiles_root"):
-    command = "createfiles"
-else:
-    print("Error: no command specified")
-    exit(ExitCodes.NO_COMMAND)
+command = args.command
+if command not in COMMANDS:
+    print("Error: incorrect command, must be one of %s" % dumps(COMMANDS))
+    exit(ExitCodes.INVALID_COMMAND)
 
 # Check Input File
-input_path = Path(abspath(args.input_spec_path))
+input_path = Path(abspath(args.input_file))
 if not input_path.exists():
     print("Error: input spec %s does not exist" % input_path, file=stderr)
     exit(ExitCodes.NO_INPUT_FILE)
 
-if command == "merge":
-    md_root_path = args.md_files_root
-else:
-    md_root_path = args.createfiles_root
-
-# Check Markdown Root
-md_root = Path(abspath(md_root_path))
-if not md_root.exists() or not md_root.is_dir():
+# Check Root
+root_path = args.files_root
+md_root = Path(abspath(root_path))
+if md_root.exists() and md_root.is_dir():
     if command == "createfiles":
-        md_root.mkdir()
-    else:
-        print("Error: MarkDown root %s does not exist "
-              "or is not a directory" % md_root, file=stderr)
-        exit(ExitCodes.NO_MD_ROOT)
+        print("Error: given root %s already exists" % md_root, file=stderr)
+        exit(ExitCodes.MD_ROOT_EXISTS)
+elif command == "createfiles":
+    md_root.mkdir(parents=True)
+else:
+    print("Error: MarkDown root %s does not exist "
+          "or is not a directory" % md_root, file=stderr)
+    exit(ExitCodes.NO_MD_ROOT)
 
 # Open Input File
 spec = {}
@@ -136,6 +193,11 @@ for path in spec["paths"]:
         if command == "createfiles":
             method_md_path.parent.mkdir(parents=True)
             method_md_path.touch()
+            for lang in args.languages:
+                method_code_path = md_root.joinpath(path_no_slash) / (
+                        "%s%s" % (method, LANGUAGES[lang])
+                )
+                method_code_path.touch()
             continue
         if not method_md_path.exists():
             print("Warning: MarkDown file %s "
@@ -147,18 +209,32 @@ for path in spec["paths"]:
                 method_file.readline()
             )
             method_info["description"] = method_file.read()
+        code_samples = []
+        for lang in LANGUAGES:
+            method_code_path = md_root.joinpath(path_no_slash) / (
+                    "%s%s" % (method, LANGUAGES[lang])
+            )
+            if method_code_path.exists():
+                with open(method_code_path, "r") as method_code_file:
+                    code_samples.append({
+                        "lang": lang,
+                        "source": method_code_file.read()
+                    })
+        if code_samples:
+            method_info["x-codeSamples"] = code_samples
 
+# Finish createfiles
 if command == "createfiles":
     print("Done")
     exit()
 
 # Write To Screen
-if args.output_spec_path is None:
+if args.output_file is None:
     print(dumps(spec))
     exit()
 
 # Write To File
-output_path = Path(abspath(args.output_spec_path))
+output_path = Path(abspath(args.output_file))
 if not output_path.parent.exists():
     print("Error: output spec %s parent does not exist" % output_path.parent)
     exit(ExitCodes.NO_OUTPUT_PARENT)
