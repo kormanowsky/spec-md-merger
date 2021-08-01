@@ -1,6 +1,7 @@
 # Spec and Markdown Merger 
 
-Merges your Swagger spec and MarkDown description files
+Merges your Swagger spec and MarkDown description files, 
+optionally adding code samples.
 
 # Usage
 
@@ -9,15 +10,37 @@ Merges your Swagger spec and MarkDown description files
 # Commands
 
 ## `createfiles`
-`python3 main.py createfiles YOUR_SPEC YOUR_ROOT_FOLDER`
+`python3 main.py createfiles YOUR_SPEC [YOUR_ROOT_FOLDER] 
+[--languages LANG1 LANG2 ... LANGN`
 
-This command will create all necessary folders and empty .md files for your spec.
+This command will create all necessary folders and 
+empty .md and code sample files for your spec. 
+`LANG1`, `LANG2` etc are names of programming languages. 
+Now this program supports
+languages listed below. 
+```python3
+LANGUAGES = {
+    "Python": ".py",
+    "PHP": ".php",
+    "JavaScript": ".js",
+    "Java": ".java",
+    "C": ".c",
+    "C++": ".cpp",
+    "C#": ".cs",
+    "Go": ".go",
+    "Dart": ".dart",
+}
+```
 
 ## `merge`
-`python3 main.py merge YOUR_SPEC YOUR_ROOT_FOLDER [OUTPUT_SPEC]`
+`python3 main.py merge YOUR_SPEC [YOUR_ROOT_FOLDER] [OUTPUT_SPEC]`
 
 This command will merge your spec and your MarkDown files and output the result
 to `OUTPUT_SPEC` if it is present, or will `print()` the result.
+
+## Note
+
+`YOUR_ROOT_FOLDER` is current working directory by default.
 
 # Folders and files
 
