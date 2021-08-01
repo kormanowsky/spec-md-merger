@@ -115,7 +115,8 @@ args = parser.parse_args()
 # Check What Command Are We Running
 command = args.command
 if command not in COMMANDS:
-    print("Error: incorrect command, must be one of %s" % dumps(COMMANDS))
+    print("Error: incorrect command, "
+          "must be one of %s" % dumps(COMMANDS), file=stderr)
     exit(ExitCodes.INVALID_COMMAND)
 
 # Check Input File
@@ -237,7 +238,8 @@ if args.output_file is None:
 # Write To File
 output_path = Path(abspath(args.output_file))
 if not output_path.parent.exists():
-    print("Error: output spec %s parent does not exist" % output_path.parent)
+    print("Error: output spec %s "
+          "parent does not exist" % output_path.parent, file=stderr)
     exit(ExitCodes.NO_OUTPUT_PARENT)
 with open(output_path, "w") as output_file:
     output_file.write(dumps(spec))
