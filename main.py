@@ -127,16 +127,17 @@ if not input_path.exists():
 # Check Root
 root_path = args.files_root
 md_root = Path(abspath(root_path))
-if md_root.exists() and md_root.is_dir():
-    if command == "createfiles":
-        print("Error: given root %s already exists" % md_root, file=stderr)
+if not md_root.is_dir():
+    if md_root.exists():
+        print("Error: given root %s already exists "
+              "and is not a directory" % md_root, file=stderr)
         exit(ExitCodes.MD_ROOT_EXISTS)
-elif command == "createfiles":
-    md_root.mkdir(parents=True)
-else:
-    print("Error: MarkDown root %s does not exist "
-          "or is not a directory" % md_root, file=stderr)
-    exit(ExitCodes.NO_MD_ROOT)
+    elif command == "createfiles":
+        md_root.mkdir(parents=True)
+    else:
+        print("Error: MarkDown root %s does not exist "
+              "or is not a directory" % md_root, file=stderr)
+        exit(ExitCodes.NO_MD_ROOT)
 
 # Open Input File
 spec = {}
