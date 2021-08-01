@@ -1,4 +1,4 @@
-import argparse
+from argparse import ArgumentParser
 from os.path import abspath
 from os import getcwd
 from pathlib import Path
@@ -46,7 +46,7 @@ LANGUAGES = {
 COMMANDS = ["merge", "createfiles"]
 
 # Parse CLI Args
-parser = argparse.ArgumentParser()
+parser = ArgumentParser()
 subparsers = parser.add_subparsers(
     dest="command"
 )
